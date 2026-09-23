@@ -15,20 +15,13 @@ import {
   Hash,
   Smile,
   AlertCircle,
-  Lightbulb
+  Lightbulb,
+  Users
 } from 'lucide-react';
 import { RoomPlayer, RoomState } from '../types';
 import { sound } from '../utils/audio';
 
 const AVATARS = ['🌟', '🚀', '💎', '🏆', '🔥', '⭐', '⚡', '🌺', '🎯', '💡', '🦅', '🦁'];
-
-const NICKNAME_SUGGESTIONS = [
-  'MDRT Tinh Anh',
-  'PruStar Toàn Năng',
-  'Chiến Binh Pru',
-  'Cố Vấn Kim Cương',
-  'Chuyên Gia Viện Phí',
-];
 
 const SHAPE_CONFIG = [
   { shape: '▲', label: 'A', name: 'Tam giác Đỏ', bg: 'bg-[#E21B3C]', border: 'border-red-500', text: 'text-red-400' },
@@ -277,44 +270,19 @@ export const KahootPlayerView: React.FC<KahootPlayerViewProps> = ({
             </div>
 
             {/* 2. MỤC ĐẶT TÊN TVV (CHỈ CẦN TÊN TVV, KHÔNG CẦN PHÒNG BAN) */}
-            <div className="bg-slate-950/60 p-3.5 rounded-2xl border border-slate-800 space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-200 mb-1.5 flex items-center gap-1.5">
-                  <User className="w-3.5 h-3.5 text-red-400" />
-                  <span>Tên Tư Vấn Viên (TVV) / Đại Lý:</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="VD: Nguyễn Thùy Linh, Tuấn MDRT..."
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white placeholder-slate-500 text-sm font-bold focus:border-red-500 focus:outline-none"
-                />
-              </div>
-
-              {/* Quick nickname suggestion pills */}
-              <div>
-                <span className="text-[10px] text-slate-400 font-semibold block mb-1.5">
-                  Gợi ý tên nhanh:
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {NICKNAME_SUGGESTIONS.map((tag) => (
-                    <button
-                      key={tag}
-                      type="button"
-                      onClick={() => {
-                        sound.playClick();
-                        const base = name ? name.split(' - ')[0] : 'TVV';
-                        setName(`${base} (${tag})`);
-                      }}
-                      className="text-[10px] font-bold px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors cursor-pointer"
-                    >
-                      +{tag}
-                    </button>
-                  ))}
-                </div>
-              </div>
+            <div className="bg-slate-950/60 p-3.5 rounded-2xl border border-slate-800 space-y-2">
+              <label className="block text-xs font-bold text-slate-200 mb-1 flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5 text-red-400" />
+                <span>Họ và tên Tư Vấn Viên / Đại Lý:</span>
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="Nhập tên của bạn (VD: Nguyễn Thùy Linh, Nam Pru...)"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white placeholder-slate-500 text-sm font-bold focus:border-red-500 focus:outline-none"
+              />
             </div>
 
             {/* 3. CHỌN BIỂU TƯỢNG ĐẠI DIỆN */}
@@ -367,12 +335,15 @@ export const KahootPlayerView: React.FC<KahootPlayerViewProps> = ({
     );
   }
 
-  // 2. Waiting in Lobby
+  // 2. Waiting in Lobby (Kahoot-style waiting room)
   if (!room || room.status === 'lobby') {
+    const playersList = room ? Object.values(room.players) : [];
+
     return (
       <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-4">
-        <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl text-center space-y-6">
-          <div className="w-20 h-20 rounded-3xl bg-red-600/20 border-2 border-red-500/40 text-4xl flex items-center justify-center mx-auto shadow-inner animate-bounce">
+        <div className="w-full max-w-md bg-slate-900 border-2 border-red-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl text-center space-y-5">
+          {/* Avatar */}
+          <div className="w-20 h-20 rounded-3xl bg-red-600/20 border-2 border-red-500/50 text-4xl flex items-center justify-center mx-auto shadow-inner animate-bounce">
             {avatar}
           </div>
 
@@ -389,45 +360,68 @@ export const KahootPlayerView: React.FC<KahootPlayerViewProps> = ({
                 <Edit3 className="w-3.5 h-3.5" />
               </button>
             </div>
-            <p className="text-xs text-red-400 font-bold mt-1">
+            <p className="text-xs text-red-400 font-bold mt-0.5">
               Tư Vấn Viên Prudential
             </p>
           </div>
 
-          <div className="p-4 rounded-2xl bg-slate-800/80 border border-slate-700/80 space-y-2">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-              ĐÃ VÀO PHÒNG THÀNH CÔNG
+          {/* Room PIN Card */}
+          <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2">
+            <span className="text-[11px] font-black text-amber-400 uppercase tracking-widest block">
+              BẠN ĐÃ VÀO PHÒNG CHỜ THÀNH CÔNG!
             </span>
-            <div className="text-2xl font-black text-amber-400 font-mono">
+            <div className="text-3xl font-black text-white font-mono tracking-widest">
               PIN: {pin}
             </div>
-            <p className="text-xs text-slate-300">
-              Hãy nhìn lên màn hình máy chiếu. Giảng viên sắp bấm nút bắt đầu bài thi!
-            </p>
+            <div className="text-xs text-slate-300 pt-1 flex items-center justify-center gap-1.5 font-medium">
+              <div className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping" />
+              <span>Đang đợi Quản trò (Host) bấm Bắt đầu trận đấu...</span>
+            </div>
           </div>
 
-          {/* Quick button to edit name if TVV wants */}
-          <div className="flex justify-center">
+          {/* List of players in lobby */}
+          <div className="bg-slate-950/40 p-3 rounded-2xl border border-slate-800/60 text-left">
+            <div className="flex items-center justify-between text-xs font-bold text-slate-400 mb-2">
+              <span className="flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5 text-red-500" />
+                <span>Đại lý trong phòng ({playersList.length}):</span>
+              </span>
+              <span className="text-[10px] text-emerald-400 font-bold animate-pulse">● Trực tuyến</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
+              {playersList.map((p) => (
+                <span
+                  key={p.id}
+                  className={`text-xs px-2.5 py-1 rounded-xl flex items-center gap-1 font-bold ${
+                    p.id === playerId
+                      ? 'bg-red-600 text-white shadow-sm'
+                      : 'bg-slate-800 text-slate-300 border border-slate-700/60'
+                  }`}
+                >
+                  <span>{p.avatar}</span>
+                  <span className="truncate max-w-[120px]">{p.name}</span>
+                  {p.id === playerId && <span className="text-[10px] opacity-80">(Bạn)</span>}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Quick change name button */}
+          <div className="flex items-center justify-center gap-3 pt-2">
             <button
               onClick={() => setIsEditingName(true)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 border border-slate-700 transition-colors cursor-pointer"
             >
               <Edit3 className="w-3.5 h-3.5 text-amber-400" />
-              <span>Đổi tên TVV khác</span>
+              <span>Đổi tên TVV</span>
+            </button>
+            <button
+              onClick={onExitPlayerMode}
+              className="text-xs text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
+            >
+              Thoát
             </button>
           </div>
-
-          <div className="flex items-center justify-center gap-2 text-xs text-emerald-400 font-bold animate-pulse">
-            <div className="w-2 h-2 rounded-full bg-emerald-400" />
-            <span>Đang kết nối trực tiếp ({room?.timeLimitSec || 20}s / Câu)</span>
-          </div>
-
-          <button
-            onClick={onExitPlayerMode}
-            className="text-xs text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
-          >
-            Thoát chế độ người chơi
-          </button>
         </div>
       </div>
     );
@@ -620,7 +614,102 @@ export const KahootPlayerView: React.FC<KahootPlayerViewProps> = ({
     );
   }
 
-  // 5. Active Countdown Question Screen with 4 Kahoot Touch Buttons (▲, ◆, ●, ■)
+  // 5. Player has chosen answer, WAITING FOR ALL PLAYERS OR TIMER EXPIRY (NO SPOILERS)
+  if (selectedOption !== null && !isAutoRevealed) {
+    const chosenShape = SHAPE_CONFIG[selectedOption];
+    const totalPlayersCount = room ? Object.keys(room.players).length : 0;
+    const answeredCount = room 
+      ? Object.values(room.players).filter((p) => p.lastAnswer && p.lastAnswer.questionIndex === room.currentQuestionIndex).length 
+      : 0;
+
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-between p-4 selection:bg-none select-none">
+        {/* Top Header */}
+        <div className="flex items-center justify-between gap-3 bg-slate-900/90 p-3.5 rounded-2xl border border-slate-800 shadow-md">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">{avatar}</span>
+            <div>
+              <div className="text-xs font-black text-slate-200 leading-tight">
+                {name}
+              </div>
+              <div className="text-[10px] text-amber-400 font-bold font-mono">
+                {currentPlayer?.score ?? 0} điểm
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 font-mono">
+            <Clock className={`w-4 h-4 ${timeLeft <= 5 ? 'text-rose-500 animate-bounce' : 'text-amber-400'}`} />
+            <span className={`text-base font-black ${timeLeft <= 5 ? 'text-rose-400' : 'text-slate-100'}`}>
+              {timeLeft}s
+            </span>
+          </div>
+        </div>
+
+        {/* Center: Selected Answer Badge & Waiting Status */}
+        <div className="max-w-md w-full mx-auto my-auto text-center space-y-6 animate-fade-in">
+          {/* Chosen shape card */}
+          <div className="relative inline-block">
+            <div className={`w-32 h-32 rounded-3xl ${chosenShape?.bg || 'bg-slate-800'} text-white flex flex-col items-center justify-center shadow-2xl mx-auto ring-4 ring-white/30 animate-pulse`}>
+              <span className="text-6xl drop-shadow-lg">{chosenShape?.shape}</span>
+              <span className="text-xl font-black mt-1">{chosenShape?.label}</span>
+            </div>
+            <div className="absolute -bottom-2 -right-2 bg-emerald-500 text-slate-950 p-2 rounded-full shadow-lg font-black text-xs border-2 border-slate-950">
+              ✓ Đã chọn
+            </div>
+          </div>
+
+          <div>
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-xs font-black uppercase tracking-wider mb-2">
+              <CheckCircle2 className="w-4 h-4" />
+              <span>ĐÃ GHI NHẬN CÂU TRẢ LỜI</span>
+            </div>
+            <h2 className="text-xl sm:text-2xl font-black text-white">
+              Bạn đã chọn {chosenShape?.shape} {chosenShape?.label}
+            </h2>
+            <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
+              Đang đợi hết thời gian hoặc tất cả mọi người nộp bài để công bố kết quả...
+            </p>
+          </div>
+
+          {/* Submission progress */}
+          <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-3">
+            <div className="flex items-center justify-between text-xs font-bold text-slate-300">
+              <span className="flex items-center gap-1.5">
+                <Users className="w-4 h-4 text-amber-400" />
+                <span>Tiến độ nộp bài:</span>
+              </span>
+              <span className="text-amber-400 font-mono text-sm">
+                {answeredCount} / {Math.max(answeredCount, totalPlayersCount)} người
+              </span>
+            </div>
+
+            <div className="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
+              <div 
+                className="bg-gradient-to-r from-amber-500 to-emerald-500 h-full transition-all duration-300"
+                style={{ 
+                  width: `${totalPlayersCount > 0 ? Math.min(100, Math.round((answeredCount / totalPlayersCount) * 100)) : 100}%` 
+                }}
+              />
+            </div>
+
+            <div className="text-[11px] text-slate-400 flex items-center justify-center gap-1.5 pt-1">
+              <div className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+              <span>Kết quả đúng/sai sẽ tự động hiện khi cả phòng hoàn tất!</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="text-center py-2 text-[11px] text-slate-500 flex items-center justify-center gap-1.5">
+          <ShieldCheck className="w-3.5 h-3.5 text-red-500" />
+          <span>Prudential Việt Nam • Đấu Trí Kahoot Live</span>
+        </div>
+      </div>
+    );
+  }
+
+  // 6. Active Countdown Question Screen with 4 Kahoot Touch Buttons (▲, ◆, ●, ■)
   const isDoublePoints = Boolean(room.isDoublePoints);
 
   return (

@@ -217,9 +217,27 @@ app.post('/api/room/:pin/answer', (req, res) => {
     };
   }
 
+  // Check if all connected players in the room have answered this question!
+  const playerList = Object.values(room.players);
+  const totalInRoom = playerList.length;
+  const answeredInRoom = playerList.filter(
+    (p) => p.lastAnswer && p.lastAnswer.questionIndex === room.currentQuestionIndex
+  ).length;
+
+  if (totalInRoom > 0 && answeredInRoom >= totalInRoom) {
+    room.status = 'reveal';
+  }
+
   room.lastUpdated = Date.now();
   broadcastRoom(pin);
-  return res.json({ success: true, player, room });
+  return res.json({ 
+    success: true, 
+    player, 
+    room, 
+    allAnswered: room.status === 'reveal',
+    answeredCount: answeredInRoom,
+    totalPlayers: totalInRoom,
+  });
 });
 
 // Host controls room (start game, next question, reveal answer, reset, change time limit)
