@@ -1,0 +1,6 @@
+{
+  "name": "PruQuest - Bảo Lãnh Viện Phí Prudential",
+  "description": "Nền tảng game trắc nghiệm tương tác chuyên nghiệp phục vụ trình chiếu lớp học huấn luyện đại lý về sản phẩm và dịch vụ Bảo Lãnh Viện Phí mới của Prudential Việt Nam.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
