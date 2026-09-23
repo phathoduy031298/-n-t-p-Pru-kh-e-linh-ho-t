@@ -15,7 +15,9 @@ import {
   X,
   FileText,
   Zap,
-  Users
+  Users,
+  Calculator,
+  Clock
 } from 'lucide-react';
 import { Question, Participant } from '../types';
 import { KahootStatsBar } from './KahootStatsBar';
@@ -113,20 +115,35 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
             <span>⭐ CÂU HỎI NHÂN ĐÔI ĐIỂM (x2 DOUBLE POINTS)! ⭐</span>
           </div>
           <span className="text-[11px] font-extrabold bg-slate-950 text-amber-300 px-2.5 py-0.5 rounded-full">
-            Đúng +10đ • Sai -1đ
+            Nhân đôi điểm x2 • Chuỗi đúng ≥3 thưởng thêm 🔥
           </span>
         </div>
       )}
 
       {/* Header bar of Question */}
       <div className="flex flex-wrap items-center justify-between gap-2.5 mb-4">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="px-3 py-1 rounded-full text-xs font-black bg-red-600/20 text-red-400 border border-red-500/30 flex items-center gap-1.5 shadow-xs">
             <GraduationCap className="w-3.5 h-3.5" />
             CÂU {currentIndex + 1} / {totalQuestions}
           </span>
           <span className="px-3 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700">
             {question.category}
+          </span>
+          {question.questionType === 'scenario' ? (
+            <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1.5">
+              <Calculator className="w-3.5 h-3.5 text-amber-400" />
+              Tình Huống / Tính Toán
+            </span>
+          ) : (
+            <span className="px-3 py-1 rounded-full text-xs font-bold bg-sky-500/20 text-sky-300 border border-sky-500/40 flex items-center gap-1.5">
+              <FileText className="w-3.5 h-3.5 text-sky-400" />
+              Lý Thuyết
+            </span>
+          )}
+          <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-800/80 text-slate-300 border border-slate-700 flex items-center gap-1">
+            <Clock className="w-3 h-3 text-amber-400" />
+            {question.timeLimit || 20}s
           </span>
         </div>
 
@@ -360,27 +377,46 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="bg-blue-950/40 rounded-xl p-3.5 border border-blue-800/40">
-                  <div className="flex items-center gap-2 text-xs font-bold text-blue-400 uppercase tracking-wider mb-1">
-                    <Lightbulb className="w-3.5 h-3.5 text-blue-400" />
-                    Mẹo tư vấn thực chiến & Quyền lợi vượt trội:
-                  </div>
-                  <p className="text-xs sm:text-sm text-blue-100/90 leading-relaxed">
-                    {question.extraKnowledge}
-                  </p>
-                </div>
-
-                <div className="bg-amber-950/40 rounded-xl p-3.5 border border-amber-800/40">
+              {/* Calculation Formula Block (if available) */}
+              {question.calculation && (
+                <div className="bg-amber-950/40 rounded-xl p-3.5 border border-amber-600/40">
                   <div className="flex items-center gap-2 text-xs font-bold text-amber-400 uppercase tracking-wider mb-1">
-                    <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
-                    Khẩu quyết / Lời khuyên để nhớ lâu hơn:
+                    <Calculator className="w-3.5 h-3.5 text-amber-400" />
+                    Công thức & Diễn giải cách tính:
                   </div>
-                  <p className="text-xs sm:text-sm text-amber-100/90 font-semibold leading-relaxed">
-                    {question.memoryTip}
+                  <p className="text-xs sm:text-sm font-semibold text-amber-200 leading-relaxed font-mono bg-slate-950/50 p-2.5 rounded-lg border border-amber-800/30">
+                    {question.calculation}
                   </p>
                 </div>
-              </div>
+              )}
+
+              {(question.extraKnowledge || question.memoryTip) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {question.extraKnowledge && (
+                    <div className="bg-blue-950/40 rounded-xl p-3.5 border border-blue-800/40">
+                      <div className="flex items-center gap-2 text-xs font-bold text-blue-400 uppercase tracking-wider mb-1">
+                        <Lightbulb className="w-3.5 h-3.5 text-blue-400" />
+                        Mẹo tư vấn thực chiến & Quyền lợi vượt trội:
+                      </div>
+                      <p className="text-xs sm:text-sm text-blue-100/90 leading-relaxed">
+                        {question.extraKnowledge}
+                      </p>
+                    </div>
+                  )}
+
+                  {question.memoryTip && (
+                    <div className="bg-amber-950/40 rounded-xl p-3.5 border border-amber-800/40">
+                      <div className="flex items-center gap-2 text-xs font-bold text-amber-400 uppercase tracking-wider mb-1">
+                        <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
+                        Khẩu quyết / Lời khuyên để nhớ lâu hơn:
+                      </div>
+                      <p className="text-xs sm:text-sm text-amber-100/90 font-semibold leading-relaxed">
+                        {question.memoryTip}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 

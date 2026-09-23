@@ -5,12 +5,15 @@ export interface Question {
   options: [string, string, string, string];
   correctAnswer: number; // 0, 1, 2, 3
   explanation: string;
-  extraKnowledge: string;
-  memoryTip: string;
+  extraKnowledge?: string;
+  memoryTip?: string;
   sourceDocPage?: string; // e.g. "Trang 13 - Quy tắc và Điều khoản PRUKhỏe Linh Hoạt"
   scenario?: string; // Optional real-world context
   optionExplanations?: [string, string, string, string]; // Detailed breakdown of A, B, C, D
   isDoublePoints?: boolean; // Kahoot-style random x2 points!
+  questionType?: 'theory' | 'scenario'; // 60% theory, 40% scenario
+  timeLimit?: number; // Custom thinking time in seconds (e.g. 20s, 30s, 35s, 45s, 60s)
+  calculation?: string; // Calculation formula / details
 }
 
 export interface Participant {
@@ -24,6 +27,10 @@ export interface Participant {
     option: number;
     isCorrect: boolean;
     points: number;
+    speedScore?: number;
+    orderRank?: number;
+    streakBonus?: number;
+    streak?: number;
   };
 }
 
@@ -63,6 +70,10 @@ export interface RoomPlayer {
     timeTakenMs: number;
     isCorrect: boolean;
     points: number;
+    speedScore?: number;
+    orderRank?: number;
+    streakBonus?: number;
+    streak?: number;
   };
 }
 

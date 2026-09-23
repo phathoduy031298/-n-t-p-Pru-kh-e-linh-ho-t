@@ -518,21 +518,44 @@ export const KahootPlayerView: React.FC<KahootPlayerViewProps> = ({
                 ? 'HẾT THỜI GIAN TRẢ LỜI! ⏱️' 
                 : 'CHƯA CHÍNH XÁC! ❌'}
             </h2>
-            <p className="text-sm mt-1 text-slate-300">
+            <div className="text-sm mt-2 text-slate-300 space-y-1">
               {isCorrect ? (
-                <span className="text-emerald-300 font-bold">
-                  Bạn nhận được +{pointsDelta} điểm {room.isDoublePoints && '(x2 Nhân đôi)'}!
-                </span>
+                <>
+                  <div className="text-emerald-300 font-extrabold text-base">
+                    +{pointsDelta} điểm {room.isDoublePoints && '⭐ (x2 Nhân đôi)'}!
+                  </div>
+                  {currentPlayer?.lastAnswer && (
+                    <div className="flex flex-wrap items-center justify-center gap-1.5 text-xs text-slate-300 pt-1">
+                      {currentPlayer.lastAnswer.speedScore !== undefined && (
+                        <span className="bg-slate-800 px-2 py-0.5 rounded-md text-amber-300 border border-slate-700">
+                          Tốc độ: +{currentPlayer.lastAnswer.speedScore}đ
+                        </span>
+                      )}
+                      {currentPlayer.lastAnswer.orderRank !== undefined && (
+                        <span className="bg-slate-800 px-2 py-0.5 rounded-md text-sky-300 border border-slate-700">
+                          Thứ hạng nộp: #{currentPlayer.lastAnswer.orderRank}
+                        </span>
+                      )}
+                      {currentPlayer.lastAnswer.streakBonus !== undefined && currentPlayer.lastAnswer.streakBonus > 0 && (
+                        <span className="bg-orange-950/80 px-2 py-0.5 rounded-md text-orange-300 font-bold border border-orange-700/60 flex items-center gap-1">
+                          <Flame className="w-3 h-3 fill-orange-400" />
+                          Chuỗi đúng ({currentPlayer.streak} câu): +{currentPlayer.lastAnswer.streakBonus}đ!
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </>
               ) : isTimedOutWithoutAnswer ? (
-                <span className="text-amber-300">
-                  Bạn chưa kịp chạm đáp án trước khi kết thúc đếm (-1 điểm).
-                </span>
+                <div className="text-amber-300">
+                  <span>Hết giờ mà chưa kịp chạm đáp án! Chuỗi đúng bị hủy về 0.</span>
+                </div>
               ) : (
-                <span className="text-rose-300">
-                  Bạn đã chọn <span className="font-bold">{chosenConfig?.shape} {chosenConfig?.label}</span> (-1 điểm).
-                </span>
+                <div className="text-rose-300">
+                  <div>Bạn đã chọn <span className="font-bold">{chosenConfig?.shape} {chosenConfig?.label}</span>.</div>
+                  <div className="text-xs text-rose-400/80 mt-0.5">Không duy trì được chuỗi đúng (Chuỗi về 0).</div>
+                </div>
               )}
-            </p>
+            </div>
           </div>
 
           {/* EXACT CORRECT ANSWER BANNER */}

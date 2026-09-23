@@ -228,10 +228,17 @@ export const KahootStatsBar: React.FC<KahootStatsBarProps> = ({
                         </span>
                         <div className="text-right">
                           <span className="text-xs font-black block">
-                            {isAnsCorrect ? `+${answer.points}đ` : `${answer.points}đ`}
+                            {isAnsCorrect ? `+${answer.points}đ` : `0đ`}
                           </span>
                           <span className="text-[9px] block opacity-80">
-                            {isAnsCorrect ? 'ĐÚNG' : 'SAI'}
+                            {isAnsCorrect ? (
+                              <span className="text-emerald-400 font-bold">
+                                {answer.orderRank ? `#${answer.orderRank}` : 'ĐÚNG'}
+                                {answer.streakBonus ? ` (+${answer.streakBonus}🔥)` : ''}
+                              </span>
+                            ) : (
+                              <span className="text-rose-400">SAI</span>
+                            )}
                           </span>
                         </div>
                       </div>

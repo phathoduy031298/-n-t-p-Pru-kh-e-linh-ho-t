@@ -30,6 +30,10 @@ interface PlayerState {
     timeTakenMs: number;
     isCorrect: boolean;
     points: number;
+    speedScore?: number;
+    orderRank?: number;
+    streakBonus?: number;
+    streak?: number;
   };
 }
 
@@ -46,6 +50,7 @@ interface RoomState {
   explanation?: string;
   players: Record<string, PlayerState>;
   lastUpdated: number;
+  correctSubmissionCount?: number;
 }
 
 const rooms: Record<string, RoomState> = {};
@@ -150,20 +155,67 @@ app.post('/api/room/:pin/answer', (req, res) => {
   const correct = Boolean(isCorrect);
   const double = Boolean(isDoublePoints ?? room.isDoublePoints);
 
-  // Scoring: Kahoot speed bonus + correctness (+10 for double, +5 for normal, -1 for wrong)
-  const basePoints = correct ? (double ? 10 : 5) : -1;
-  const timeBonus = correct && timeTakenMs && timeTakenMs < 20000 ? Math.max(0, Math.round((20000 - timeTakenMs) / 5000)) : 0;
-  const totalPointsDelta = correct ? (basePoints + timeBonus) : -1;
+  let totalPointsDelta = 0;
+  let speedScore = 0;
+  let orderRank = 0;
+  let streakBonus = 0;
+  const totalMs = (room.timeLimitSec || 20) * 1000;
+  const takenMs = Math.max(0, Math.min(totalMs, timeTakenMs || 0));
 
-  player.score = Math.max(0, player.score + totalPointsDelta);
-  player.streak = correct ? player.streak + 1 : 0;
-  player.lastAnswer = {
-    questionIndex,
-    option,
-    timeTakenMs: timeTakenMs || 0,
-    isCorrect: correct,
-    points: totalPointsDelta,
-  };
+  if (correct) {
+    // 1. Tốc độ & Thứ tự nộp bài nhanh nhất
+    room.correctSubmissionCount = (room.correctSubmissionCount || 0) + 1;
+    orderRank = room.correctSubmissionCount;
+
+    // Thời gian còn lại: người trả lời càng nhanh thì điểm càng cao
+    const remainingRatio = Math.max(0, (totalMs - takenMs) / totalMs);
+    // Điểm tốc độ cơ sở: 500 đến 1000 điểm
+    speedScore = Math.round(500 + 500 * remainingRatio);
+
+    // Điểm thưởng thứ tự nộp bài sớm nhất phòng: #1: +100đ, #2: +75đ, #3: +50đ, #4+: +25đ
+    const orderBonus = orderRank === 1 ? 100 : orderRank === 2 ? 75 : orderRank === 3 ? 50 : 25;
+
+    // Nhân đôi điểm nếu câu hỏi x2
+    const baseQuestionPoints = Math.round((speedScore + orderBonus) * (double ? 2 : 1));
+
+    // 2. Điểm thưởng chuỗi đúng liên tiếp từ 3 câu trở lên
+    player.streak += 1;
+    if (player.streak >= 5) {
+      streakBonus = 400; // Siêu chuỗi 5+ câu đúng
+    } else if (player.streak === 4) {
+      streakBonus = 250; // Chuỗi 4 câu đúng
+    } else if (player.streak === 3) {
+      streakBonus = 150; // Chuỗi 3 câu đúng
+    }
+
+    totalPointsDelta = baseQuestionPoints + streakBonus;
+    player.score = player.score + totalPointsDelta;
+
+    player.lastAnswer = {
+      questionIndex,
+      option,
+      timeTakenMs: takenMs,
+      isCorrect: true,
+      points: totalPointsDelta,
+      speedScore,
+      orderRank,
+      streakBonus,
+      streak: player.streak,
+    };
+  } else {
+    // Sai hoặc hết giờ: 0 điểm và HỦY chuỗi đúng lập tức!
+    player.streak = 0;
+    totalPointsDelta = 0;
+
+    player.lastAnswer = {
+      questionIndex,
+      option,
+      timeTakenMs: takenMs,
+      isCorrect: false,
+      points: 0,
+      streak: 0,
+    };
+  }
 
   room.lastUpdated = Date.now();
   broadcastRoom(pin);
@@ -189,6 +241,7 @@ app.post('/api/room/:pin/control', (req, res) => {
     room.currentQuestionIndex = questionIndex ?? 0;
     room.questionStartTime = Date.now();
     room.isDoublePoints = Boolean(isDoublePoints);
+    room.correctSubmissionCount = 0;
     if (correctAnswer !== undefined) room.correctAnswer = correctAnswer;
     if (questionText) room.questionText = questionText;
     if (options) room.options = options;
@@ -202,6 +255,7 @@ app.post('/api/room/:pin/control', (req, res) => {
     room.currentQuestionIndex = questionIndex ?? (room.currentQuestionIndex + 1);
     room.questionStartTime = Date.now();
     room.isDoublePoints = Boolean(isDoublePoints);
+    room.correctSubmissionCount = 0;
     if (correctAnswer !== undefined) room.correctAnswer = correctAnswer;
     if (questionText) room.questionText = questionText;
     if (options) room.options = options;
@@ -224,6 +278,7 @@ app.post('/api/room/:pin/control', (req, res) => {
     room.status = 'lobby';
     room.currentQuestionIndex = 0;
     room.questionStartTime = Date.now();
+    room.correctSubmissionCount = 0;
     Object.values(room.players).forEach((p) => {
       p.score = 0;
       p.streak = 0;

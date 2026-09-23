@@ -10,10 +10,11 @@ import {
   Layers,
   ArrowRight,
   Trophy,
-  BarChart3
+  BarChart3,
+  Shuffle
 } from 'lucide-react';
 import { Question, Team, PlayMode, Participant, RoomState } from './types';
-import { DEFAULT_QUESTIONS } from './data/defaultQuestions';
+import { generateGameQuestions, QUESTION_BANK } from './data/questionBank';
 import { Header } from './components/Header';
 import { QuestionCard } from './components/QuestionCard';
 import { QuestionNavigator } from './components/QuestionNavigator';
@@ -85,11 +86,12 @@ export default function App() {
     );
   }
 
-  const [questions, setQuestions] = useState<Question[]>(() => assignRandomDoublePoints(DEFAULT_QUESTIONS));
+  const [questions, setQuestions] = useState<Question[]>(() => generateGameQuestions());
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [isAnswerSubmitted, setIsAnswerSubmitted] = useState(false);
   const [score, setScore] = useState(0);
+  const [streak, setStreak] = useState(0);
   const [history, setHistory] = useState<{
     questionId: string;
     selectedOption: number;
@@ -137,6 +139,10 @@ export default function App() {
               option: p.lastAnswer.option,
               isCorrect: p.lastAnswer.isCorrect,
               points: p.lastAnswer.points,
+              speedScore: p.lastAnswer.speedScore,
+              orderRank: p.lastAnswer.orderRank,
+              streakBonus: p.lastAnswer.streakBonus,
+              streak: p.lastAnswer.streak,
             } : undefined,
           })));
         }
@@ -157,9 +163,13 @@ export default function App() {
   const [isMuted, setIsMuted] = useState(false);
   const [isBgmActive, setIsBgmActive] = useState(false);
 
-  // Timer state & custom time limit selector (10s, 15s, 20s, 30s, 45s, 60s)
-  const [customTimeLimit, setCustomTimeLimit] = useState(20);
-  const [timeLeft, setTimeLeft] = useState(20);
+  // Current active question
+  const currentQuestion = questions[currentIndex] || questions[0];
+  const isLastQuestion = currentIndex === questions.length - 1;
+
+  // Timer state dynamically initialized to match current question's timeLimit
+  const [customTimeLimit, setCustomTimeLimit] = useState(questions[0]?.timeLimit || 20);
+  const [timeLeft, setTimeLeft] = useState(questions[0]?.timeLimit || 20);
   const [isTimerRunning, setIsTimerRunning] = useState(true);
   const [isTimerDisabled, setIsTimerDisabled] = useState(false); // Active countdown by default like Kahoot
   const timerRef = useRef<any>(null);
@@ -171,9 +181,6 @@ export default function App() {
   const [isDocGeneratorOpen, setIsDocGeneratorOpen] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('Tất cả');
-
-  const currentQuestion = questions[currentIndex] || questions[0];
-  const isLastQuestion = currentIndex === questions.length - 1;
 
   // Change answer time limit dynamically and broadcast to all TVV phones
   const handleChangeTimeLimit = (newLimit: number) => {
@@ -268,15 +275,44 @@ export default function App() {
 
     const isCorrect = index >= 0 && index === currentQuestion.correctAnswer;
     const isDoublePoints = Boolean(currentQuestion.isDoublePoints);
-    const correctPoints = isDoublePoints ? 10 : 5;
+
+    let pointsAwarded = 0;
+    let speedScore = 0;
+    let orderRankBonus = 0;
+    let streakBonus = 0;
+    let nextStreak = 0;
 
     if (isCorrect) {
       sound.playCorrect();
-      setScore((prev) => prev + correctPoints);
+      nextStreak = streak + 1;
+      setStreak(nextStreak);
+
+      const totalSec = customTimeLimit || 20;
+      const remainingSec = Math.max(0, Math.min(totalSec, timeLeft));
+      const ratio = totalSec > 0 ? remainingSec / totalSec : 0.5;
+
+      // Điểm tốc độ cơ sở: 500 - 1000 điểm
+      speedScore = Math.round(500 + 500 * ratio);
+
+      // Thưởng phản xạ nhanh: >80% thời gian: +100đ, >60%: +75đ, >40%: +50đ, còn lại: +25đ
+      if (ratio > 0.8) orderRankBonus = 100;
+      else if (ratio > 0.6) orderRankBonus = 75;
+      else if (ratio > 0.4) orderRankBonus = 50;
+      else orderRankBonus = 25;
+
+      const basePoints = Math.round((speedScore + orderRankBonus) * (isDoublePoints ? 2 : 1));
+
+      // Điểm thưởng chuỗi đúng liên tiếp (từ 3 câu trở lên)
+      if (nextStreak >= 5) streakBonus = 400;
+      else if (nextStreak === 4) streakBonus = 250;
+      else if (nextStreak === 3) streakBonus = 150;
+
+      pointsAwarded = basePoints + streakBonus;
+      setScore((prev) => prev + pointsAwarded);
 
       // Light confetti celebration for right answer
       confetti({
-        particleCount: isDoublePoints ? 60 : 35,
+        particleCount: isDoublePoints ? 80 : 45,
         spread: 70,
         origin: { y: 0.7 },
         colors: isDoublePoints ? ['#FFD700', '#FFA500', '#ED1B2E', '#22C55E'] : ['#22C55E', '#ED1B2E', '#FFD700'],
@@ -285,30 +321,40 @@ export default function App() {
       // Update team score if in team battle
       if (playMode === 'team_battle') {
         setTeams((prev) =>
-          prev.map((t) =>
-            t.id === activeTeamId
-              ? { ...t, score: t.score + correctPoints, streak: t.streak + 1 }
-              : t
-          )
+          prev.map((t) => {
+            if (t.id !== activeTeamId) return t;
+            const teamNextStreak = t.streak + 1;
+            let teamStreakBonus = 0;
+            if (teamNextStreak >= 5) teamStreakBonus = 400;
+            else if (teamNextStreak === 4) teamStreakBonus = 250;
+            else if (teamNextStreak === 3) teamStreakBonus = 150;
+            return {
+              ...t,
+              score: t.score + basePoints + teamStreakBonus,
+              streak: teamNextStreak,
+            };
+          })
         );
       }
     } else {
       sound.playWrong();
-      // Deduct 1 point for incorrect answer or timeout
-      setScore((prev) => Math.max(0, prev - 1));
+      // Sai hoặc hết giờ: 0 điểm và HỦY chuỗi đúng lập tức!
+      setStreak(0);
+      pointsAwarded = 0;
 
       if (playMode === 'team_battle') {
         setTeams((prev) =>
           prev.map((t) =>
-            t.id === activeTeamId ? { ...t, score: Math.max(0, t.score - 1), streak: 0 } : t
+            t.id === activeTeamId ? { ...t, streak: 0 } : t
           )
         );
       }
     }
 
     // Update participants' answers and scores for Kahoot Breakdown ("Ai đã chọn câu nào")
-    setParticipants((prev) =>
-      prev.map((p, pIdx) => {
+    setParticipants((prev) => {
+      let simCorrectRank = 0;
+      return prev.map((p, pIdx) => {
         let chosenOpt = index;
         if (pIdx > 0) {
           const seed = (pIdx * 7 + currentIndex * 3) % 10;
@@ -322,22 +368,47 @@ export default function App() {
         }
 
         const pCorrect = chosenOpt === currentQuestion.correctAnswer;
-        const delta = pCorrect ? correctPoints : -1;
-        const newScore = Math.max(0, p.score + delta);
-        const newStreak = pCorrect ? p.streak + 1 : 0;
+        let pPoints = 0;
+        let pStreak = 0;
+        let pStreakBonus = 0;
+        let pSpeedBonus = 0;
+        let pOrderRank = 0;
+
+        if (pCorrect) {
+          simCorrectRank++;
+          pOrderRank = simCorrectRank;
+          pStreak = p.streak + 1;
+          const simRatio = Math.max(0.1, 1 - (pIdx * 0.1));
+          pSpeedBonus = Math.round(500 + 500 * simRatio);
+          const simOrderBonus = pOrderRank === 1 ? 100 : pOrderRank === 2 ? 75 : pOrderRank === 3 ? 50 : 25;
+          const simBase = Math.round((pSpeedBonus + simOrderBonus) * (isDoublePoints ? 2 : 1));
+
+          if (pStreak >= 5) pStreakBonus = 400;
+          else if (pStreak === 4) pStreakBonus = 250;
+          else if (pStreak === 3) pStreakBonus = 150;
+
+          pPoints = simBase + pStreakBonus;
+        } else {
+          pStreak = 0;
+          pPoints = 0;
+        }
 
         return {
           ...p,
-          score: newScore,
-          streak: newStreak,
+          score: p.score + pPoints,
+          streak: pStreak,
           lastAnswer: {
             option: chosenOpt,
             isCorrect: pCorrect,
-            points: delta,
+            points: pPoints,
+            speedScore: pSpeedBonus,
+            orderRank: pOrderRank,
+            streakBonus: pStreakBonus,
+            streak: pStreak,
           },
         };
-      })
-    );
+      });
+    });
 
     // Save to history
     setHistory((prev) => {
@@ -386,10 +457,14 @@ export default function App() {
     }
 
     const nextIndex = currentIndex + 1;
+    const nextQ = questions[nextIndex];
+    const nextTime = nextQ?.timeLimit || 20;
+
     setCurrentIndex(nextIndex);
     setSelectedOption(null);
     setIsAnswerSubmitted(false);
-    setTimeLeft(customTimeLimit);
+    setCustomTimeLimit(nextTime);
+    setTimeLeft(nextTime);
     if (!isTimerDisabled) {
       setIsTimerRunning(true);
     }
@@ -401,19 +476,19 @@ export default function App() {
       setActiveTeamId(nextTeam.id);
     }
 
-    // Broadcast next question to all player phones with custom time limit & question details
+    // Broadcast next question to all player phones with tailored time limit & question details
     fetch(`/api/room/${gamePin}/control`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action: 'next',
         questionIndex: nextIndex,
-        isDoublePoints: Boolean(questions[nextIndex]?.isDoublePoints),
-        correctAnswer: questions[nextIndex]?.correctAnswer,
-        questionText: questions[nextIndex]?.question,
-        options: questions[nextIndex]?.options,
-        explanation: questions[nextIndex]?.explanation,
-        timeLimitSec: customTimeLimit,
+        isDoublePoints: Boolean(nextQ?.isDoublePoints),
+        correctAnswer: nextQ?.correctAnswer,
+        questionText: nextQ?.question,
+        options: nextQ?.options,
+        explanation: nextQ?.explanation,
+        timeLimitSec: nextTime,
       }),
     }).catch(() => {});
   };
@@ -431,6 +506,7 @@ export default function App() {
     if (targetIndex >= 0 && targetIndex < questions.length) {
       setCurrentIndex(targetIndex);
       const targetQ = questions[targetIndex];
+      const targetTime = targetQ?.timeLimit || 20;
       const answered = history.find((h) => h.questionId === targetQ.id);
 
       if (answered) {
@@ -440,7 +516,8 @@ export default function App() {
       } else {
         setSelectedOption(null);
         setIsAnswerSubmitted(false);
-        setTimeLeft(customTimeLimit);
+        setCustomTimeLimit(targetTime);
+        setTimeLeft(targetTime);
         if (!isTimerDisabled) setIsTimerRunning(true);
       }
 
@@ -450,37 +527,56 @@ export default function App() {
         body: JSON.stringify({
           action: 'next',
           questionIndex: targetIndex,
-          isDoublePoints: Boolean(questions[targetIndex]?.isDoublePoints),
-          correctAnswer: questions[targetIndex]?.correctAnswer,
-          questionText: questions[targetIndex]?.question,
-          options: questions[targetIndex]?.options,
-          explanation: questions[targetIndex]?.explanation,
-          timeLimitSec: customTimeLimit,
+          isDoublePoints: Boolean(targetQ?.isDoublePoints),
+          correctAnswer: targetQ?.correctAnswer,
+          questionText: targetQ?.question,
+          options: targetQ?.options,
+          explanation: targetQ?.explanation,
+          timeLimitSec: targetTime,
         }),
       }).catch(() => {});
     }
   };
 
-  // Reset entire quiz
+  // Reset entire quiz: generates a freshly shuffled 20-question exam (60% theory, 40% scenario, all categories)
   const handleResetQuiz = () => {
     sound.playClick();
+    const freshQuestions = generateGameQuestions();
+    setQuestions(freshQuestions);
     setCurrentIndex(0);
     setSelectedOption(null);
     setIsAnswerSubmitted(false);
     setScore(0);
+    setStreak(0);
     setHistory([]);
     setIsGameOver(false);
-    setTimeLeft(customTimeLimit);
+    const initialTime = freshQuestions[0]?.timeLimit || 20;
+    setCustomTimeLimit(initialTime);
+    setTimeLeft(initialTime);
     setIsTimerRunning(!isTimerDisabled);
     setTeams(INITIAL_TEAMS);
     setParticipants(INITIAL_PARTICIPANTS);
-    setQuestions(assignRandomDoublePoints(DEFAULT_QUESTIONS));
 
     fetch(`/api/room/${gamePin}/control`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'reset' }),
+      body: JSON.stringify({
+        action: 'next',
+        questionIndex: 0,
+        isDoublePoints: Boolean(freshQuestions[0]?.isDoublePoints),
+        correctAnswer: freshQuestions[0]?.correctAnswer,
+        questionText: freshQuestions[0]?.question,
+        options: freshQuestions[0]?.options,
+        explanation: freshQuestions[0]?.explanation,
+        timeLimitSec: initialTime,
+      }),
     }).catch(() => {});
+  };
+
+  // Shuffle new 20-question exam on demand
+  const handleShuffleNewExam = () => {
+    sound.playCorrect();
+    handleResetQuiz();
   };
 
   // Add / Replace questions from Modal
@@ -525,9 +621,11 @@ export default function App() {
         onOpenPlayerMode={() => setIsManualPlayerMode(true)}
         connectedPlayersCount={room ? Object.keys(room.players).length : 0}
         onResetQuiz={handleResetQuiz}
+        onShuffleNewExam={handleShuffleNewExam}
         currentQuestionIndex={currentIndex}
         totalQuestions={questions.length}
         score={score}
+        streak={streak}
       />
 
       {/* Main Content Area */}
@@ -685,6 +783,15 @@ export default function App() {
 
               <div className="flex items-center gap-2">
                 <button
+                  onClick={handleShuffleNewExam}
+                  className="text-xs font-bold px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors cursor-pointer flex items-center gap-1.5"
+                  title="Trộn ngẫu nhiên bộ đề 20 câu: 60% Lý thuyết • 40% Tình huống, đầy đủ chủ đề"
+                >
+                  <Shuffle className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Trộn Đề 20 Câu</span>
+                </button>
+
+                <button
                   onClick={() => {
                     setIsGameOver(true);
                     setGameOverTab('podium');
@@ -710,6 +817,7 @@ export default function App() {
               }}
               selectedCategory={selectedCategory}
               onSelectCategory={setSelectedCategory}
+              onShuffleNewExam={handleShuffleNewExam}
             />
           </>
         )}

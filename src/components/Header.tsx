@@ -12,7 +12,9 @@ import {
   Trophy,
   Music,
   QrCode,
-  Smartphone
+  Smartphone,
+  Shuffle,
+  Flame
 } from 'lucide-react';
 import { PlayMode } from '../types';
 
@@ -31,9 +33,11 @@ interface HeaderProps {
   onOpenPlayerMode?: () => void;
   connectedPlayersCount?: number;
   onResetQuiz: () => void;
+  onShuffleNewExam?: () => void;
   currentQuestionIndex: number;
   totalQuestions: number;
   score: number;
+  streak?: number;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -51,9 +55,11 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenPlayerMode,
   connectedPlayersCount = 0,
   onResetQuiz,
+  onShuffleNewExam,
   currentQuestionIndex,
   totalQuestions,
   score,
+  streak = 0,
 }) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -87,13 +93,13 @@ export const Header: React.FC<HeaderProps> = ({
               </span>
             </div>
             <p className="text-xs text-slate-400 hidden sm:block">
-              Hệ thống Game Huấn Luyện Bảo Lãnh Viện Phí 24/7 • +5 điểm / Đúng • -1 điểm / Sai
+              Hệ thống Huấn Luyện PRUKhỏe Linh Hoạt • Ưu tiên chính xác & Tốc độ • Chuỗi đúng ≥ 3 thưởng điểm 🔥
             </p>
           </div>
         </div>
 
         {/* Center Progress & Stats */}
-        <div className="flex items-center gap-4 bg-slate-800/80 px-4 py-1.5 rounded-xl border border-slate-700/60 shadow-inner">
+        <div className="flex items-center gap-3 sm:gap-4 bg-slate-800/80 px-3 sm:px-4 py-1.5 rounded-xl border border-slate-700/60 shadow-inner">
           <div className="text-center">
             <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-semibold">Tiến độ câu</span>
             <span className="font-bold text-sm text-red-400">
@@ -109,6 +115,25 @@ export const Header: React.FC<HeaderProps> = ({
               {score} <span className="text-[11px] text-amber-500/80 font-normal">đ</span>
             </span>
           </div>
+
+          {streak >= 2 && (
+            <>
+              <div className="w-px h-6 bg-slate-700" />
+              <div className="text-center animate-fade-in">
+                <span className="text-[10px] text-orange-400 uppercase tracking-wider block font-black flex items-center justify-center gap-0.5">
+                  <Flame className="w-3 h-3 fill-orange-400 animate-pulse" /> Chuỗi
+                </span>
+                <span className="font-black text-sm text-orange-400 flex items-center justify-center gap-1">
+                  x{streak}
+                  {streak >= 3 && (
+                    <span className="text-[9px] bg-orange-500/20 text-orange-300 px-1 py-0.2 rounded font-black border border-orange-500/30">
+                      +Bonus
+                    </span>
+                  )}
+                </span>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Action Controls */}
@@ -249,10 +274,22 @@ export const Header: React.FC<HeaderProps> = ({
             {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>
 
+          {/* Shuffle New Exam (20 questions: 60% Theory, 40% Scenario) */}
+          {onShuffleNewExam && (
+            <button
+              onClick={onShuffleNewExam}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white border border-red-400/40 text-xs font-black shadow-md shadow-red-950/50 transition-all active:scale-95 cursor-pointer"
+              title="Trộn ngẫu nhiên bộ đề 20 câu: 60% Lý thuyết • 40% Tình huống, đầy đủ chủ đề"
+            >
+              <Shuffle className="w-3.5 h-3.5" />
+              <span className="hidden xl:inline">Trộn Đề 20 Câu</span>
+            </button>
+          )}
+
           {/* Reset Quiz */}
           <button
             onClick={onResetQuiz}
-            className="p-2 rounded-lg bg-slate-800 hover:bg-rose-900/60 hover:text-rose-200 text-slate-400 border border-slate-700 text-xs transition-colors"
+            className="p-2 rounded-lg bg-slate-800 hover:bg-rose-900/60 hover:text-rose-200 text-slate-400 border border-slate-700 text-xs transition-colors cursor-pointer"
             title="Làm mới bài trắc nghiệm từ đầu"
           >
             <RotateCcw className="w-4 h-4" />
